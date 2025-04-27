@@ -2,11 +2,10 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-const VERIFY_TOKEN = "sokaswahiba";
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "sokaswahiba";
 
 app.use(express.json());
 
-// Endpoint ya GET kwa webhook verification
 app.get('/', (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
@@ -20,16 +19,15 @@ app.get('/', (req, res) => {
             res.sendStatus(403);
         }
     } else {
-        res.sendStatus(400);
+        res.send('SokaSwahiba Webhook running!');
     }
 });
 
-// Endpoint ya POST kupokea WhatsApp messages
 app.post('/', (req, res) => {
-    console.log('Webhook event received:', JSON.stringify(req.body, null, 2));
+    console.log('Webhook received POST:', JSON.stringify(req.body, null, 2));
     res.sendStatus(200);
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`App is running on port ${PORT}`);
 });
