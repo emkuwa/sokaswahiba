@@ -1,7 +1,5 @@
 const express = require('express');
 const app = express();
-
-// Railway automatically gives us PORT in environment variable
 const PORT = process.env.PORT || 3000;
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "sokaswahiba";
@@ -21,15 +19,15 @@ app.get('/', (req, res) => {
       res.sendStatus(403);
     }
   } else {
-    res.status(200).send('Sokaswahiba Webhook is running!');
+    res.status(200).send('SokaSwahiba Webhook is Active!');
   }
 });
 
 app.post('/', (req, res) => {
-  console.log('Webhook received POST:', JSON.stringify(req.body, null, 2));
+  console.log('Webhook event received:', JSON.stringify(req.body, null, 2));
   res.sendStatus(200);
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`App is running on port ${PORT}`);
 });
