@@ -1,22 +1,19 @@
 const express = require("express");
-const bodyParser = require("body-parser");
-require("dotenv").config();
+const axios = require("axios");
 const app = express();
+app.use(express.json());
 
-app.use(bodyParser.json());
+const VERIFY_TOKEN = "sokaswahiba";
+const ACCESS_TOKEN = "WEKA_HAPA_ACCESS_TOKEN_YAKO";
 
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-const PORT = process.env.PORT || 3000;
-
-// Webhook verification
-app.get("/webhook", (req, res) => {
+app.get("/", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
   if (mode && token) {
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("Webhook verified successfully!");
+      console.log("WEBHOOK VERIFIED");
       res.status(200).send(challenge);
     } else {
       res.sendStatus(403);
@@ -24,32 +21,43 @@ app.get("/webhook", (req, res) => {
   }
 });
 
-// Webhook message handler
-app.post("/webhook", (req, res) => {
-  let body = req.body;
+app.post("/", async (req, res) => {
+  console.log("Received:", JSON.stringify(req.body, null, 2));
 
-  if (body.object) {
-    if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value.messages) {
-      let message = body.entry[0].changes[0].value.messages[0];
-      let from = message.from;
-      let userMessage = message.text.body.toLowerCase();
+  if (req.body.object) {
+    if (
+      req.body.entry &&
+      req.body.entry[0].changes &&
+      req.body.entry[0].changes[0].value.messages &&
+      req.body.entry[0].changes[0].value.messages[0]
+    ) {
+      const phone_number_id = req.body.entry[0].changes[0].value.metadata.phone_number_id;
+      const from = req.body.entry[0].changes[0].value.messages[0].from;
+      const msg_body = req.body.entry[0].changes[0].value.messages[0].text.body.toLowerCase();
 
-      let reply;
-      if (userMessage.includes("ratiba")) {
-        reply = "Ratiba ya leo: Yanga vs Simba saa 1:00 jioni (Uwanja wa Mkapa)";
-      } else if (userMessage.includes("matokeo")) {
-        reply = "Matokeo ya jana: Azam FC 2 - 1 Namungo FC";
-      } else if (userMessage.includes("uchambuzi")) {
-        reply = "Uchambuzi: Yanga wanatarajiwa kushambulia zaidi kupitia winga wa kulia.";
-      } else if (userMessage.includes("odds")) {
-        reply = "Odds: Yanga kushinda @1.80, Simba kushinda @2.10, Sare @3.00.";
-      } else if (userMessage.includes("habari")) {
-        reply = "Habari: Samatta amerudi kikosini kujiandaa na mechi dhidi ya Azam FC.";
+      let reply = "";
+
+      if (msg_body.includes("ratiba")) {
+        reply = "Ratiba ya leo: Simba SC vs Yanga SC saa 11:00 jioni.";
+      } else if (msg_body.includes("mechi")) {
+        reply = "Mechi ijayo: Azam FC vs Mtibwa Sugar.";
       } else {
-        reply = "Karibu SokaSwahiba! Tuma 'ratiba', 'matokeo', 'uchambuzi', 'odds', au 'habari'.";
+        reply = "Samahani, sijaelewa. Tafadhali andika 'ratiba' au 'mechi'.";
       }
 
-      sendWhatsAppMessage(from, reply);
+      await axios({
+        method: "POST",
+        url: `https://graph.facebook.com/v18.0/${phone_number_id}/messages`,
+        headers: {
+          "Authorization": `Bearer ${ACCESS_TOKEN}`,
+          "Content-Type": "application/json"
+        },
+        data: {
+          messaging_product: "whatsapp",
+          to: from,
+          text: { body: reply }
+        }
+      });
     }
     res.sendStatus(200);
   } else {
@@ -57,26 +65,7 @@ app.post("/webhook", (req, res) => {
   }
 });
 
-const axios = require("axios");
-
-async function sendWhatsAppMessage(to, message) {
-  const url = `https://graph.facebook.com/v17.0/${process.env.PHONE_NUMBER_ID}/messages`;
-  await axios.post(
-    url,
-    {
-      messaging_product: "whatsapp",
-      to: to,
-      text: { body: message },
-    },
-    {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.ACCESS_TOKEN}`,
-      },
-    }
-  ).catch((error) => console.error("Send message error:", error.response.data));
-}
-
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("SokaSwahiba Bot is running on port " + PORT);
+  console.log(`Server is running on port ${PORT}`);
 });
