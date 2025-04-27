@@ -1,15 +1,13 @@
-// server.js
-
 const express = require('express');
 const app = express();
+const PORT = process.env.PORT || 8080;
 
-// Middleware to parse JSON requests
-app.use(express.json());
-
-// Your verify token (should match the one you provide on Meta)
+// Token yako uliyoandika kwenye Facebook webhook
 const VERIFY_TOKEN = "sokaswahiba";
 
-// Endpoint to verify webhook
+app.use(express.json());
+
+// GET endpoint ya verification
 app.get('/', (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
@@ -17,41 +15,22 @@ app.get('/', (req, res) => {
 
     if (mode && token) {
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-            console.log('Webhook verified successfully!');
+            console.log('WEBHOOK_VERIFIED');
             res.status(200).send(challenge);
         } else {
-            res.sendStatus(403);
+            res.sendStatus(403); // Forbidden
         }
     } else {
-        res.send('SokaSwahiba Bot Webhook Active!');
+        res.sendStatus(400); // Bad Request
     }
 });
 
-// Endpoint to handle incoming messages
+// POST endpoint ya kupokea message updates
 app.post('/', (req, res) => {
-    console.log('Received POST:');
-    console.log(JSON.stringify(req.body, null, 2));
-
-    const body = req.body;
-
-    if (body.object) {
-        if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value.messages) {
-            const messages = body.entry[0].changes[0].value.messages;
-            const from = messages[0].from;
-            const text = messages[0].text.body;
-
-            console.log(`New message from ${from}: ${text}`);
-
-            // Here you can add logic to reply to messages
-        }
-        res.sendStatus(200);
-    } else {
-        res.sendStatus(404);
-    }
+    console.log('Received a webhook POST:', JSON.stringify(req.body, null, 2));
+    res.sendStatus(200);
 });
 
-// Start server with dynamic port (important for Railway)
-const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-    console.log(`App is running on port ${PORT}`);
+    console.log(`App is listening on port ${PORT}`);
 });
