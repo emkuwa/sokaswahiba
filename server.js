@@ -3,78 +3,73 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Hardcoded verify token (must match Facebook Developer Console)
-const VERIFY_TOKEN = "sokaswahiba";
+// ✅ Replace with your actual WhatsApp Cloud API token
+const WHATSAPP_TOKEN = "EAAiNtAMdupUBO1CBKGv4uDcSgJZBmTyzvnyqoRdg9EQXQbj07GdmUt78kDX8eCG2mLPMZA55fPN5Tduj6MeIZALKSAKCsvpgE4bauZA64UPfh8ZCXmrbdZAccFXpN7trkDXxN9iAEHDIcUgLqreCJudqQLZCwBqyHUrOFqslmBX1BP9dAvfgmgNBDBUTyZCJgEnTORvGREqZB9nEU174xjEZAGURICHAeN8qTCDK1mr3K6MQZDZD";
 
-// 🔐 Replace this with your actual Facebook Page Access Token
-const PAGE_ACCESS_TOKEN = "EAAiNtAMdupUBO5oZA8Gu3feVAk8FhZBWmhymfHKRiJ9dcOX5mZBYrC4b2XGr5CSWFcfvUfONaZBQfqvmPFZAGQnnOqKwBPLnk412ZA7QY4hoEXCoXQtfQmd53VkYEjsmANsZCTJX0Qr9EubIZADwwGwynOCbKRnPGYRbTycZAM4l0XpblNbKMQlu1gwEvxbyhJRZAZAmD2zucCui0P9nvUZD";
+// ✅ Replace with your phone number ID from dashboard
+const PHONE_NUMBER_ID = "637244432803866";
 
 app.use(express.json());
 
-// ✅ Webhook verification endpoint (GET)
+// ✅ Webhook verification (required by Meta)
 app.get('/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+  const verify_token = "sokaswahiba";
 
-  console.log("Webhook GET called with:", { mode, token, challenge });
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
 
-  if (mode && token && challenge) {
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-      console.log('WEBHOOK_VERIFIED');
-      return res.status(200).send(challenge);
+  if (mode && token) {
+    if (mode === "subscribe" && token === verify_token) {
+      console.log("WEBHOOK_VERIFIED");
+      res.status(200).send(challenge);
     } else {
-      console.log("Token mismatch:", token);
-      return res.sendStatus(403);
+      res.sendStatus(403);
     }
   } else {
-    return res.status(400).send('Missing query params');
+    res.sendStatus(400);
   }
 });
 
-// ✅ Message handling endpoint (POST)
-app.post('/webhook', (req, res) => {
+// ✅ Handle incoming WhatsApp messages
+app.post('/webhook', async (req, res) => {
   const body = req.body;
 
-  if (body.object === 'page') {
-    body.entry.forEach(function(entry) {
-      const webhookEvent = entry.messaging[0];
-      console.log('Incoming Message:', webhookEvent);
+  if (body.object) {
+    body.entry?.forEach(async (entry) => {
+      const changes = entry.changes?.[0];
+      const messages = changes?.value?.messages;
 
-      const senderPsid = webhookEvent.sender.id;
+      if (messages && messages[0]) {
+        const from = messages[0].from;
+        const text = messages[0].text?.body || "No message body";
 
-      if (webhookEvent.message && webhookEvent.message.text) {
-        const userMessage = webhookEvent.message.text;
-        console.log(`Received message from ${senderPsid}: ${userMessage}`);
+        console.log(`📩 New message from ${from}: ${text}`);
 
-        // Send a reply
-        callSendAPI(senderPsid, `Umesema: "${userMessage}". Asante kwa ujumbe!`);
+        // Send auto-reply
+        await axios.post(
+          `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+          {
+            messaging_product: "whatsapp",
+            to: from,
+            text: { body: `Umesema: "${text}". Karibu Zanzibaba Building Materials.` }
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+              "Content-Type": "application/json"
+            }
+          }
+        );
       }
     });
 
-    res.status(200).send('EVENT_RECEIVED');
+    res.sendStatus(200);
   } else {
     res.sendStatus(404);
   }
 });
 
-// ✅ Function to send a reply message using Facebook Messenger API
-function callSendAPI(senderPsid, responseText) {
-  const requestBody = {
-    recipient: { id: senderPsid },
-    message: { text: responseText }
-  };
-
-  axios.post(`https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`, requestBody)
-    .then(() => {
-      console.log('Message sent!');
-    })
-    .catch(error => {
-      console.error('Unable to send message:', error.response ? error.response.data : error.message);
-    });
-}
-
-// ✅ Start server
 app.listen(PORT, () => {
-  console.log(`App is running on port ${PORT}`);
+  console.log(`✅ WhatsApp bot is live on port ${PORT}`);
 });
